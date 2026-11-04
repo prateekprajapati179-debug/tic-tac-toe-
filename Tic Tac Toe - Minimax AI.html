@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tic Tac Toe - Minimax AI</title>
+<style>
+:root{--bg:#f4f5f7;--card:#ffffff;--text:#1b1f27;--muted:#6b7280;--line:#d9dde3;--x:#1d4ed8;--o:#dc2626;--accent:#2563eb;--win:#bbf7d0;--cell:#eef1f5;--err:#b91c1c;--ok:#15803d;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1318;--card:#1a2029;--text:#e8ebf0;--muted:#98a2b3;--line:#2c3541;--x:#60a5fa;--o:#f87171;--accent:#3b82f6;--win:#166534;--cell:#242c37;--err:#f87171;--ok:#4ade80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1318;--card:#1a2029;--text:#e8ebf0;--muted:#98a2b3;--line:#2c3541;--x:#60a5fa;--o:#f87171;--accent:#3b82f6;--win:#166534;--cell:#242c37;--err:#f87171;--ok:#4ade80;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;padding:20px 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;width:100%;max-width:400px}
+h1{margin:0 0 4px;font-size:24px;text-align:center}
+.sub{margin:0 0 18px;text-align:center;color:var(--muted);font-size:13px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input[type=text],input[type=password],select{width:100%;padding:10px 12px;font-size:16px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text)}
+button{font:inherit;cursor:pointer}
+.btn{padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:15px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.row{display:flex;gap:10px;margin-top:16px}
+.row .btn{flex:1}
+.msg{min-height:20px;margin-top:12px;font-size:14px;text-align:center}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.top b{font-size:15px}
+.status{text-align:center;font-size:17px;margin:6px 0 14px;min-height:24px}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cell{aspect-ratio:1;border-radius:12px;border:1px solid var(--line);background:var(--cell);font-size:clamp(36px,13vw,56px);font-weight:700;color:var(--text)}
+.cell:disabled{cursor:default}
+.cell.X{color:var(--x)}
+.cell.O{color:var(--o)}
+.cell.win{background:var(--win)}
+.score{display:flex;justify-content:space-around;margin-top:16px;font-size:14px}
+.score div{text-align:center}
+.score span{display:block;font-size:22px;font-weight:700}
+.nodes{text-align:center;color:var(--muted);font-size:14px;margin-top:12px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;align-items:end}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;margin:0;color:var(--text)}
+.foot{text-align:center;color:var(--muted);font-size:12px;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="card">
+
+  <!-- LOGIN SCREEN -->
+  <section id="loginView">
+    <h1>Tic Tac Toe</h1>
+    <p class="sub">Minimax AI se jeet ke dikhao</p>
+    <label for="uname">Username</label>
+    <input type="text" id="uname" autocomplete="username" autocapitalize="none">
+    <label for="pword">Password</label>
+    <input type="password" id="pword" autocomplete="current-password">
+    <div class="msg" id="loginMsg"></div>
+    <div class="row">
+      <button class="btn primary" id="loginBtn">Login</button>
+      <button class="btn" id="regBtn">Register</button>
+    </div>
+  </section>
+
+  <!-- GAME SCREEN -->
+  <section id="gameView" hidden>
+    <div class="top">
+      <b id="who"></b>
+      <button class="btn" id="logoutBtn">Logout</button>
+    </div>
+    <div class="status" id="status"></div>
+    <div class="board" id="board"></div>
+    <div class="nodes" id="nodes">Nodes checked: -</div>
+    <div class="score">
+      <div>You<span id="sH">0</span></div>
+      <div>AI<span id="sA">0</span></div>
+      <div>Draw<span id="sD">0</span></div>
+    </div>
+    <div class="opts">
+      <div>
+        <label for="first">Pehle kaun khele?</label>
+        <select id="first"><option value="human">Human</option><option value="ai">AI</option></select>
+      </div>
+      <label class="chk"><input type="checkbox" id="ab" checked> Alpha-Beta Pruning</label>
+    </div>
+    <div class="row"><button class="btn primary" id="newBtn">New Game</button></div>
+  </section>
+
+  <div class="foot">Minimax + Alpha-Beta Pruning</div>
+</div>
+
+<script>
+const HUMAN = "X", AI = "O";
+const LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+let nodes = 0;
+
+/* ---------- game logic ---------- */
+function getWinner(b) {
+  for (const [a, c, d] of LINES) {
+    if (b[a] && b[a] === b[c] && b[a] === b[d]) return { w: b[a], line: [a, c, d] };
+  }
+  return null;
+}
+
+function minimax(b, depth, isMax, alpha, beta, useAB) {
+  nodes++;
+  const r = getWinner(b);
+  if (r) return r.w === AI ? 10 - depth : depth - 10;   // jaldi jeetna better
+  if (!b.includes(null)) return 0;
+
+  if (isMax) {
+    let best = -1000;
+    for (let i = 0; i < 9; i++) {
+      if (b[i] === null) {
+        b[i] = AI;
+        const s = minimax(b, depth + 1, false, alpha, beta, useAB);
+        b[i] = null;
+        best = Math.max(best, s);
+        if (useAB) { alpha = Math.max(alpha, best); if (beta <= alpha) break; }
+      }
+    }
+    return best;
+  } else {
+    let best = 1000;
+    for (let i = 0; i < 9; i++) {
+      if (b[i] === null) {
+        b[i] = HUMAN;
+        const s = minimax(b, depth + 1, true, alpha, beta, useAB);
+        b[i] = null;
+        best = Math.min(best, s);
+        if (useAB) { beta = Math.min(beta, best); if (beta <= alpha) break; }
+      }
+    }
+    return best;
+  }
+}
+
+function bestMove(b, useAB) {
+  nodes = 0;
+  let bestScore = -1000, move = -1;
+  for (let i = 0; i < 9; i++) {
+    if (b[i] === null) {
+      b[i] = AI;
+      const s = minimax(b, 0, false, -1000, 1000, useAB);
+      b[i] = null;
+      if (s > bestScore) { bestScore = s; move = i; }
+    }
+  }
+  return move;
+}
+
+/* ---------- users (browser ke localStorage me) ---------- */
+function getUsers() {
+  try { return JSON.parse(localStorage.getItem("ttt_users")) || {}; } catch (e) { return {}; }
+}
+function setUsers(u) {
+  try { localStorage.setItem("ttt_users", JSON.stringify(u)); return true; } catch (e) { return false; }
+}
+function getSession() {
+  try { return localStorage.getItem("ttt_session"); } catch (e) { return null; }
+}
+function setSession(name) {
+  try { if (name) localStorage.setItem("ttt_session", name); else localStorage.removeItem("ttt_session"); } catch (e) {}
+}
+
+function toHex(bytes) {
+  return Array.from(bytes).map(x => x.toString(16).padStart(2, "0")).join("");
+}
+function newSalt() {
+  const a = new Uint8Array(8);
+  crypto.getRandomValues(a);
+  return toHex(a);
+}
+// password plain save nahi hota, sirf salted hash
+async function makeHash(pw, saltHex) {
+  const salt = Uint8Array.from(saltHex.match(/../g).map(h => parseInt(h, 16)));
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" }, key, 256);
+  return toHex(new Uint8Array(bits));
+}
+
+async function registerUser(name, pw) {
+  name = name.trim();
+  if (name.length < 3) return [false, "Username kam se kam 3 letters ka hona chahiye"];
+  if (pw.length < 4) return [false, "Password kam se kam 4 characters ka hona chahiye"];
+  const users = getUsers();
+  if (Object.keys(users).some(u => u.toLowerCase() === name.toLowerCase()))
+    return [false, "Ye username pehle se hai"];
+  const salt = newSalt();
+  users[name] = { salt: salt, hash: await makeHash(pw, salt), human: 0, ai: 0, draw: 0 };
+  if (!setUsers(users)) return [false, "Browser me data save nahi ho paya"];
+  return [true, "Account ban gaya! Ab login karo"];
+}
+
+async function checkLogin(name, pw) {
+  name = name.trim();
+  const users = getUsers();
+  const real = Object.keys(users).find(u => u.toLowerCase() === name.toLowerCase());
+  if (!real) return [false, "Ye user exist nahi karta", null];
+  const h = await makeHash(pw, users[real].salt);
+  if (h !== users[real].hash) return [false, "Password galat hai", null];
+  return [true, "Login ho gaya", real];
+}
+
+/* ---------- UI ---------- */
+const $ = id => document.getElementById(id);
+let board = Array(9).fill(null);
+let over = true;
+let user = null;
+let timer = null;
+const scores = { human: 0, ai: 0, draw: 0 };
+
+const cells = [];
+for (let i = 0; i < 9; i++) {
+  const b = document.createElement("button");
+  b.className = "cell";
+  b.addEventListener("click", () => humanMove(i));
+  $("board").appendChild(b);
+  cells.push(b);
+}
+
+function setMsg(text, kind) {
+  const m = $("loginMsg");
+  m.textContent = text;
+  m.style.color = kind === "ok" ? "var(--ok)" : kind === "err" ? "var(--err)" : "var(--muted)";
+}
+
+function render(winLine) {
+  for (let i = 0; i < 9; i++) {
+    cells[i].textContent = board[i] || "";
+    cells[i].className = "cell" + (board[i] ? " " + board[i] : "") + (winLine && winLine.includes(i) ? " win" : "");
+    cells[i].disabled = over || board[i] !== null;
+  }
+  $("sH").textContent = scores.human;
+  $("sA").textContent = scores.ai;
+  $("sD").textContent = scores.draw;
+}
+
+function saveScores() {
+  const users = getUsers();
+  if (user && users[user]) {
+    users[user].human = scores.human;
+    users[user].ai = scores.ai;
+    users[user].draw = scores.draw;
+    setUsers(users);
+  }
+}
+
+function finish() {
+  const r = getWinner(board);
+  if (r) {
+    over = true;
+    if (r.w === HUMAN) { scores.human++; $("status").textContent = "Tum jeet gaye!"; }
+    else { scores.ai++; $("status").textContent = "AI jeet gaya!"; }
+    saveScores();
+    render(r.line);
+    return true;
+  }
+  if (!board.includes(null)) {
+    over = true;
+    scores.draw++;
+    $("status").textContent = "Draw ho gaya!";
+    saveScores();
+    render();
+    return true;
+  }
+  return false;
+}
+
+function aiMove() {
+  timer = null;
+  if (over || !user) return;
+  const m = bestMove(board, $("ab").checked);
+  board[m] = AI;
+  $("nodes").textContent = "Nodes checked: " + nodes.toLocaleString("en-IN");
+  if (!finish()) { $("status").textContent = "Tumhari baari (X)"; render(); }
+}
+
+function humanMove(i) {
+  if (over || board[i] !== null || timer !== null) return;
+  board[i] = HUMAN;
+  if (finish()) return;
+  $("status").textContent = "AI soch raha hai...";
+  render();
+  timer = setTimeout(aiMove, 300);
+}
+
+function newGame() {
+  clearTimeout(timer);
+  timer = null;
+  board = Array(9).fill(null);
+  over = false;
+  $("nodes").textContent = "Nodes checked: -";
+  render();
+  if ($("first").value === "ai") {
+    $("status").textContent = "AI soch raha hai...";
+    timer = setTimeout(aiMove, 300);
+  } else {
+    $("status").textContent = "Tumhari baari (X)";
+  }
+}
+
+function enterGame(name) {
+  const u = getUsers()[name];
+  user = name;
+  scores.human = u.human; scores.ai = u.ai; scores.draw = u.draw;
+  setSession(name);
+  $("who").textContent = "Player: " + name;
+  $("loginView").hidden = true;
+  $("gameView").hidden = false;
+  newGame();
+}
+
+async function doLogin() {
+  try {
+    const [ok, msg, name] = await checkLogin($("uname").value, $("pword").value);
+    if (!ok) return setMsg(msg, "err");
+    $("pword").value = "";
+    setMsg("", "");
+    enterGame(name);
+  } catch (e) {
+    setMsg("Kuch gadbad ho gayi, dobara try karo", "err");
+  }
+}
+
+async function doRegister() {
+  try {
+    const [ok, msg] = await registerUser($("uname").value, $("pword").value);
+    setMsg(msg, ok ? "ok" : "err");
+    if (ok) $("pword").value = "";
+  } catch (e) {
+    setMsg("Kuch gadbad ho gayi, dobara try karo", "err");
+  }
+}
+
+function doLogout() {
+  clearTimeout(timer);
+  timer = null;
+  saveScores();
+  user = null;
+  over = true;
+  setSession(null);
+  $("uname").value = "";
+  $("gameView").hidden = true;
+  $("loginView").hidden = false;
+  setMsg("Logout ho gaye", "");
+  $("uname").focus();
+}
+
+$("loginBtn").addEventListener("click", doLogin);
+$("regBtn").addEventListener("click", doRegister);
+$("logoutBtn").addEventListener("click", doLogout);
+$("newBtn").addEventListener("click", newGame);
+$("first").addEventListener("change", newGame);
+$("pword").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+
+// refresh karne pe login bana rahe
+const saved = getSession();
+if (saved && getUsers()[saved]) enterGame(saved);
+</script>
+</body>
+</html>
